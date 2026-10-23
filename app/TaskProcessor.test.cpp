@@ -1,5 +1,6 @@
-#include "taskProcessor.h"
+#include "TaskProcessor.h"
 
+#include <QCoreApplication>
 #include <gtest/gtest.h>
 
 namespace {
@@ -72,6 +73,12 @@ TEST( TaskProcessorTest, ClearTest ){
     ASSERT_EQ( nullptr, p.currentTask() );
     ASSERT_EQ( 0, p.queueSize() );
     ASSERT_EQ( 1, task->executeCount() );
+}
+
+int main( int argc, char** argv ) {
+    QCoreApplication app( argc, argv );
+    ::testing::InitGoogleTest( &argc, argv );
+    return RUN_ALL_TESTS();
 }
 
 

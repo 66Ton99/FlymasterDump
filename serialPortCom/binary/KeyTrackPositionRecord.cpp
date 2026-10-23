@@ -1,6 +1,7 @@
 #include "KeyTrackPositionRecord.h"
 
 #include "Convert.h"
+#include <stdexcept>
 
 KeyTrackPositionRecord::KeyTrackPositionRecord( const BinaryFlightData& bfd ) {
     if( bfd[1].packetId != PacketId::KEY_TRACK_POSITION_RECORD ) {

@@ -28,6 +28,8 @@ public:
 
 private slots:
     void on_connectButton_clicked();
+    void on_checkButton_clicked();
+    void on_refreshButton_clicked();
     void on_saveButton_clicked();
 
 private:
@@ -38,6 +40,7 @@ private:
 
     std::map< QListWidgetItem*, FlightMetaInfo > itemInfo_;
 
+    void refreshSerialPorts();
     void sync( Property<QString>& p, QLineEdit* edit );
     void onTaskFinished( TaskPtr task );
 };

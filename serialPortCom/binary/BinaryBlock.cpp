@@ -1,6 +1,7 @@
 #include "BinaryBlock.h"
 
 #include "Convert.h"
+#include <stdexcept>
 
 BinaryBlock::BinaryBlock( const std::string& bytes ) {
     if( bytes.size() < 2 ) {

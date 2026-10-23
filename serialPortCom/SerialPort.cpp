@@ -2,23 +2,23 @@
 
 #include <chrono>
 #include <iostream>
+#include <stdexcept>
 #include <thread>
-
-#include <boost/bind.hpp>
 
 using namespace boost::asio;
 
-SerialPort::SerialPort( const std::string& port ) : port_( ioService_ ), timeout_( ioService_ ), timeoutMs_( 100 ) {
+SerialPort::SerialPort( const std::string& port ) : port_( ioContext_ ), timeout_( ioContext_ ), timeoutMs_( 1000 ) {
     boost::system::error_code ec;
-    port_.open( port );
-    if( !port_.is_open() ) {
-        throw std::runtime_error( "Failed to connect to COM3: " + ec.message() );
+    port_.open( port, ec );
+    if( ec || !port_.is_open() ) {
+        throw std::runtime_error( "Failed to connect to " + port + ": " + ec.message() );
     }
     setSpeed( Speed::BAUD115200 );
 }
 
 SerialPort::~SerialPort() {
-    port_.close();
+    boost::system::error_code ec;
+    port_.close( ec );
 }
 
 void SerialPort::setSpeed( Speed s ) {
@@ -44,16 +44,17 @@ void SerialPort::writeRequest( const std::string& request ) {
 std::string SerialPort::readResponse() {
     response_ = "";
     dataAvailable_ = false;
-    port_.get_io_service().reset();
+    ioContext_.restart();
     port_.async_read_some( buffer( buffer_, 255 ),
-                           boost::bind( &SerialPort::read_callback,
-                                        this,
-                                        placeholders::error,
-                                        placeholders::bytes_transferred ) );
-    timeout_.expires_from_now( boost::posix_time::milliseconds( timeoutMs_ ) );
-    timeout_.async_wait( boost::bind( &SerialPort::wait_callback, this, placeholders::error ) );
+                           [this]( const boost::system::error_code& error, std::size_t bytes_transferred ) {
+                               read_callback( error, bytes_transferred );
+                           } );
+    timeout_.expires_after( std::chrono::milliseconds( timeoutMs_ ) );
+    timeout_.async_wait( [this]( const boost::system::error_code& error ) {
+        wait_callback( error );
+    } );
 
-    ioService_.run(); // will block until async callbacks are finished
+    ioContext_.run(); // will block until async callbacks are finished
 
     return response_;
 }
@@ -71,12 +72,13 @@ void SerialPort::read_callback( const boost::system::error_code& error, size_t b
     }
 
     port_.async_read_some( buffer( buffer_, 255 ),
-                           boost::bind( &SerialPort::read_callback,
-                                        this,
-                                        placeholders::error,
-                                        placeholders::bytes_transferred ) );
-    timeout_.expires_from_now( boost::posix_time::milliseconds( timeoutMs_ ) );
-    timeout_.async_wait( boost::bind( &SerialPort::wait_callback, this, placeholders::error ) );
+                           [this]( const boost::system::error_code& err, std::size_t transferred ) {
+                               read_callback( err, transferred );
+                           } );
+    timeout_.expires_after( std::chrono::milliseconds( timeoutMs_ ) );
+    timeout_.async_wait( [this]( const boost::system::error_code& err ) {
+        wait_callback( err );
+    } );
     dataAvailable_ = true;
 }
 
@@ -84,5 +86,6 @@ void SerialPort::wait_callback( const boost::system::error_code& error ) {
     if( error ) {
         return;
     }
-    port_.cancel();
+    boost::system::error_code ec;
+    port_.cancel( ec );
 }

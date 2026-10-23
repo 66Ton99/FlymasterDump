@@ -158,6 +158,26 @@
        </widget>
       </item>
       <item>
+       <widget class="QToolButton" name="checkButton">
+        <property name="text">
+         <string>Check Device</string>
+        </property>
+        <property name="toolTip">
+         <string>Verify device connection and display model and firmware info</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="refreshButton">
+        <property name="text">
+         <string>↻</string>
+        </property>
+        <property name="toolTip">
+         <string>Refresh Serial Ports</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QComboBox" name="comComboBox"/>
       </item>
       <item>
@@ -180,6 +200,7 @@
     </item>
    </layout>
   </widget>
+  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <resources/>
  <connections/>

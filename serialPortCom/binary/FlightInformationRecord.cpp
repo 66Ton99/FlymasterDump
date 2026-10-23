@@ -1,6 +1,7 @@
 #include "FlightInformationRecord.h"
 
 #include "Convert.h"
+#include <stdexcept>
 
 FlightInformationRecord::FlightInformationRecord( const BinaryFlightData& bfd ) {
     if( bfd[0].packetId != PacketId::FLIGHT_INFORMAION_RECORD ) {

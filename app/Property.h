@@ -3,12 +3,12 @@
 #include <QObject>
 #include <type_traits>
 
+template < class T > class Property;
+
 class AbstractProperty : public QObject {
     Q_OBJECT
 public:
-    template < class T > const T& as() const {
-        return dynamic_cast< const Property< T >* >( this )->operator()();
-    }
+    template < class T > const T& as() const;
 signals:
     void propertyChanged( AbstractProperty* sender );
 };
@@ -67,7 +67,7 @@ public:
     }
 
     bool operator!=( const Property< T >& other ) const {
-        return !this->operator==( other.value() );
+        return !this->operator==( other );
     }
 
     bool operator!=( const T& value ) const {
@@ -77,6 +77,11 @@ public:
 private:
     T value_;
 };
+
+template < class T >
+inline const T& AbstractProperty::as() const {
+    return dynamic_cast< const Property< T >* >( this )->operator()();
+}
 
 template < typename T >
 static inline QMetaObject::Connection connectProperty( const Property< T >& a, Property< T >& b ) {

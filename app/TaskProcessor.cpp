@@ -1,6 +1,4 @@
-#include "taskProcessor.h"
-
-#include <windows.h>
+#include "TaskProcessor.h"
 
 
 Task::Task(QString name): name_( name ) {}

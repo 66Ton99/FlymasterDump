@@ -24,7 +24,12 @@ void load(Model &model){
     QSettings settings( "settings.ini", QSettings::IniFormat );
 
     settings.beginGroup( "Config" );
-    model.serialPort = settings.value( "Port", "COM1" ).toString();
+#if defined(Q_OS_WIN)
+    const QString defaultPort = "COM1";
+#else
+    const QString defaultPort = "/dev/cu.usbserial";
+#endif
+    model.serialPort = settings.value( "Port", defaultPort ).toString();
     model.serialPortSpeed = static_cast<Speed>( settings.value( "Speed", 57600 ).toInt() );
     model.recentSaveDir = settings.value( "RecentSaveDir", "" ).toString();
     settings.endGroup();

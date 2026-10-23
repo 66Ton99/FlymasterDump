@@ -3,6 +3,7 @@
 #include "StringUtils.h"
 
 #include <sstream>
+#include <stdexcept>
 
 NmeaSentence::NmeaSentence( const std::string& sentence ) {
     auto strs = checkAndStrip( sentence );
@@ -38,12 +39,8 @@ short NmeaSentence::parseChecksum( const std::string& cs ) const {
 
 std::string NmeaSentence::printChecksum( short s ) const {
     char buffer[8];
-    _itoa_s( s, buffer, 16 );
-    std::string str = buffer;
-    for( auto& c : str ) {
-        c = toupper( c );
-    }
-    return str;
+    snprintf( buffer, sizeof( buffer ), "%X", static_cast< unsigned short >( s ) );
+    return std::string( buffer );
 }
 
 std::string NmeaSentence::checkAndStrip( const std::string& sentence ) {

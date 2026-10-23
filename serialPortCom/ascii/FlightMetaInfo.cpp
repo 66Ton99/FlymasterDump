@@ -1,4 +1,5 @@
 #include "FlightMetaInfo.h"
+#include <stdexcept>
 
 FlightMetaInfo::FlightMetaInfo( const NmeaSentence& sentence ) {
     // Sample varioOutput; $PFMLST,056,055,27.06.16,12:14:58,00:23:49*3C

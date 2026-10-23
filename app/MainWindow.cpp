@@ -3,6 +3,7 @@
 
 #include "DumpTask.h"
 #include "FlightListTask.h"
+#include "CheckDeviceTask.h"
 
 #include <serialPortCom/Request.h>
 #include <serialPortCom/SerialPort.h>
@@ -11,6 +12,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QComboBox>
+#include <QFile>
 
 
 MainWindow::MainWindow( QWidget* parent ) : QMainWindow( parent ), ui( new Ui::MainWindow ), taskProgress_( processor_, this ) {
@@ -28,18 +30,26 @@ MainWindow::MainWindow( QWidget* parent ) : QMainWindow( parent ), ui( new Ui::M
         model_.serialPortSpeed = static_cast< Speed >( ui->baudComboBox->currentData().toInt() );
     });
 
-    ui->comComboBox->addItem( "COM1", "COM1" );
-    ui->comComboBox->addItem( "COM2", "COM2" );
-    ui->comComboBox->addItem( "COM3", "COM3" );
-    ui->comComboBox->addItem( "COM4", "COM4" );
-    ui->comComboBox->addItem( "COM5", "COM5" );
-    ui->comComboBox->setCurrentIndex( 2 );
+    load( model_ );
+
+    ui->comComboBox->setEditable( true );
+    refreshSerialPorts();
+
     connectProperty( model_.serialPort, this, [&](){
         auto idx = ui->comComboBox->findData( model_.serialPort() );
-        ui->comComboBox->setCurrentIndex( idx );
+        if( idx != -1 ) {
+            ui->comComboBox->setCurrentIndex( idx );
+        } else {
+            ui->comComboBox->setEditText( model_.serialPort() );
+        }
     });
-    connect( ui->comComboBox, &QComboBox::currentTextChanged, this, [&](){
-        model_.serialPort = ui->comComboBox->currentData().toString();
+    connect( ui->comComboBox, &QComboBox::currentTextChanged, this, [&]( const QString& text ){
+        auto data = ui->comComboBox->currentData();
+        if( data.isValid() && !data.toString().isEmpty() && text == ui->comComboBox->itemText( ui->comComboBox->currentIndex() ) ) {
+            model_.serialPort = data.toString();
+        } else {
+            model_.serialPort = text;
+        }
     });
 
     sync( model_.contest, ui->contestEdit );
@@ -48,9 +58,8 @@ MainWindow::MainWindow( QWidget* parent ) : QMainWindow( parent ), ui( new Ui::M
     sync( model_.pilot, ui->pilotEdit );
     sync( model_.site, ui->siteEdit );
 
-    load( model_ );
-
     connect( &processor_, &TaskProcessor::finishedTask, this, &MainWindow::onTaskFinished );
+    ui->statusbar->showMessage( tr( "Ready" ) );
 }
 
 MainWindow::~MainWindow() {
@@ -59,7 +68,83 @@ MainWindow::~MainWindow() {
 }
 
 
+void MainWindow::refreshSerialPorts() {
+    QString current = model_.serialPort();
+    ui->comComboBox->blockSignals( true );
+    ui->comComboBox->clear();
+
+#if defined(Q_OS_WIN)
+    for( int i = 1; i <= 10; ++i ) {
+        QString portName = QString("COM%1").arg(i);
+        ui->comComboBox->addItem( portName, portName );
+    }
+#else
+    QDir devDir( "/dev" );
+    // Спочатку шукаємо справжні USB-Serial адаптери (FTDI, CP210x тощо)
+    QStringList usbFilters;
+    usbFilters << "cu.usbserial*" << "cu.SLAB*" << "cu.usbmodem*" << "ttyUSB*" << "ttyACM*";
+    QFileInfoList usbEntries = devDir.entryInfoList( usbFilters, QDir::System );
+    for( const auto& entry : usbEntries ) {
+        ui->comComboBox->addItem( entry.fileName(), entry.absoluteFilePath() );
+    }
+
+    // Додаємо інші cu.* порти нижче
+    QStringList otherFilters;
+    otherFilters << "cu.*";
+    QFileInfoList otherEntries = devDir.entryInfoList( otherFilters, QDir::System );
+    for( const auto& entry : otherEntries ) {
+        if( ui->comComboBox->findData( entry.absoluteFilePath() ) == -1 ) {
+            ui->comComboBox->addItem( entry.fileName(), entry.absoluteFilePath() );
+        }
+    }
+
+    // Якщо збережений порт не існує або порожній, а у нас є реальний USB-Serial порт:
+    if( (!QFile::exists( current ) || current.isEmpty()) && !usbEntries.isEmpty() ) {
+        current = usbEntries.first().absoluteFilePath();
+        model_.serialPort = current;
+    }
+#endif
+
+    // Відновлюємо вибраний або автоматично вибираємо перший знайдений USB порт
+    int idx = ui->comComboBox->findData( current );
+    if( idx != -1 ) {
+        ui->comComboBox->setCurrentIndex( idx );
+    } else if( !current.isEmpty() ) {
+        ui->comComboBox->setEditText( current );
+    } else if( ui->comComboBox->count() > 0 ) {
+        ui->comComboBox->setCurrentIndex( 0 );
+        model_.serialPort = ui->comComboBox->currentData().toString();
+    }
+    ui->comComboBox->blockSignals( false );
+}
+
+void MainWindow::on_refreshButton_clicked() {
+    refreshSerialPorts();
+}
+
+void MainWindow::on_checkButton_clicked() {
+    QString text = ui->comComboBox->currentText().trimmed();
+    auto data = ui->comComboBox->currentData();
+    if( data.isValid() && !data.toString().isEmpty() && text == ui->comComboBox->itemText( ui->comComboBox->currentIndex() ) ) {
+        model_.serialPort = data.toString();
+    } else if( !text.isEmpty() ) {
+        model_.serialPort = text;
+    }
+
+    ui->statusbar->showMessage( tr( "Checking device on %1..." ).arg( model_.serialPort() ) );
+    TaskPtr task = std::make_shared< CheckDeviceTask >( model_ );
+    processor_.schedule( task );
+}
+
 void MainWindow::on_connectButton_clicked() {
+    QString text = ui->comComboBox->currentText().trimmed();
+    auto data = ui->comComboBox->currentData();
+    if( data.isValid() && !data.toString().isEmpty() && text == ui->comComboBox->itemText( ui->comComboBox->currentIndex() ) ) {
+        model_.serialPort = data.toString();
+    } else if( !text.isEmpty() ) {
+        model_.serialPort = text;
+    }
+
     TaskPtr flt = std::make_shared<FlightListTask>( model_ );
     processor_.schedule( flt );
 }
@@ -125,12 +210,57 @@ void MainWindow::onTaskFinished(TaskPtr task)
                 itemInfo_.insert( std::make_pair( item, flt->infos()[i] ) );
             }
             ui->saveButton->setEnabled( true );
+            ui->statusbar->showMessage( tr( "Loaded %1 flights from device" ).arg( flt->infos().size() ) );
         } else {
+            ui->statusbar->showMessage( tr( "Connection failed on %1" ).arg( model_.serialPort() ) );
+            QStringList errors = task->callback().messages( Severity::Critical );
+            QString errorMsg = errors.isEmpty() ? tr("No response from device.") : errors.join("\n");
             QMessageBox::critical( this,
-                                   "Error",
-                                   tr("Unable to connect to %1 with %2 baud")
+                                   "Connection Error",
+                                   tr("Unable to connect to %1 with %2 baud.\n\nError: %3\n\nPlease check:\n1. Flymaster is connected and POWERED ON\n2. USB cable supports data transfer\n3. Correct serial port is selected")
                                    .arg( model_.serialPort() )
-                                   .arg( static_cast<unsigned int>( model_.serialPortSpeed() ) ) );
+                                   .arg( static_cast<unsigned int>( model_.serialPortSpeed() ) )
+                                   .arg( errorMsg ) );
+        }
+    }
+
+    CheckDeviceTask* cdt = dynamic_cast< CheckDeviceTask* >( task.get() );
+    if( cdt != nullptr ) {
+        if( task->callback().count( Severity::Critical ) == 0 ) {
+            const auto& info = cdt->deviceInfo();
+            QString modelName = info.model.empty() ? QString( "Flymaster" ) : QString::fromStdString( info.model );
+            QString sn = QString::fromStdString( info.serialNumber );
+            QString fw = QString::fromStdString( info.firmware );
+            QString pr = QString::fromStdString( info.pressure );
+
+            ui->statusbar->showMessage( tr( "Connected: %1 (SN: %2, FW: %3)" ).arg( modelName ).arg( sn ).arg( fw ) );
+
+            QString msg = tr( "<h3>Flymaster Device Verified!</h3>"
+                              "<p><b>Model:</b> %1<br>"
+                              "<b>Serial Number:</b> %2<br>"
+                              "<b>Firmware:</b> %3<br>"
+                              "<b>Atmospheric Pressure:</b> %4 hPa<br>"
+                              "<b>Port:</b> %5<br>"
+                              "<b>Speed:</b> %6 baud</p>"
+                              "<p style='color:green;'><b>Status: Connected and responding normally.</b></p>" )
+                              .arg( modelName )
+                              .arg( sn.isEmpty() ? "N/A" : sn )
+                              .arg( fw.isEmpty() ? "N/A" : fw )
+                              .arg( pr.isEmpty() ? "N/A" : pr )
+                              .arg( model_.serialPort() )
+                              .arg( static_cast< unsigned int >( model_.serialPortSpeed() ) );
+
+            QMessageBox::information( this, tr( "Device Info" ), msg );
+        } else {
+            ui->statusbar->showMessage( tr( "Device check failed on %1" ).arg( model_.serialPort() ) );
+            QStringList errors = task->callback().messages( Severity::Critical );
+            QString errorMsg = errors.isEmpty() ? tr( "No response from device." ) : errors.join( "\n" );
+            QMessageBox::critical( this,
+                                   tr( "Device Check Failed" ),
+                                   tr( "Unable to communicate with Flymaster on %1 with %2 baud.\n\nError: %3\n\nPlease check:\n1. Flymaster is connected and POWERED ON\n2. USB cable supports data transfer\n3. Correct serial port is selected" )
+                                   .arg( model_.serialPort() )
+                                   .arg( static_cast< unsigned int >( model_.serialPortSpeed() ) )
+                                   .arg( errorMsg ) );
         }
     }
 }

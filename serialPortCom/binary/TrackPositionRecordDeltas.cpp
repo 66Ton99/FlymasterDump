@@ -1,6 +1,7 @@
 #include "TrackPositionRecordDeltas.h"
 
 #include "Convert.h"
+#include <stdexcept>
 
 TrackPositionRecordDeltas::TrackPositionRecordDeltas( const BinaryFlightData& bfd ) {
     std::string allData;

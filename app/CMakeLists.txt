@@ -8,6 +8,8 @@ set( UIS
 set_source_files_properties(${UIS} PROPERTIES HEADER_FILE_ONLY TRUE)
 
 add_library( varioDumpUiLib
+    CheckDeviceTask.h
+    CheckDeviceTask.cpp
     DumpTask.h
     DumpTask.cpp
     FlightListTask.h
@@ -25,7 +27,16 @@ add_library( varioDumpUiLib
     TaskProgressDialog.cpp
     ${UIS}
     )
-target_compile_definitions( varioDumpUiLib PRIVATE BOOST_ALL_DYN_LINK _WIN32_WINNT=0x0501)
+target_link_libraries( varioDumpUiLib
+    progressLib
+    serialPortComLib
+    Qt5::Widgets
+    Qt5::Core
+    Qt5::Gui
+)
+if(WIN32)
+    target_compile_definitions( varioDumpUiLib PRIVATE BOOST_ALL_DYN_LINK _WIN32_WINNT=0x0501)
+endif()
 
 add_executable( variodump main.cpp )
 target_link_libraries( variodump
@@ -36,8 +47,12 @@ target_link_libraries( variodump
     Qt5::Core
     Qt5::Gui
 )
-set_target_properties(variodump PROPERTIES WIN32_EXECUTABLE YES LINK_FLAGS "/ENTRY:mainCRTStartup")
-target_compile_definitions( variodump PRIVATE BOOST_ALL_DYN_LINK _WIN32_WINNT=0x0501)
+if(MSVC)
+    set_target_properties(variodump PROPERTIES WIN32_EXECUTABLE YES LINK_FLAGS "/ENTRY:mainCRTStartup")
+endif()
+if(WIN32)
+    target_compile_definitions( variodump PRIVATE BOOST_ALL_DYN_LINK _WIN32_WINNT=0x0501)
+endif()
 install(TARGETS variodump RUNTIME DESTINATION .)
 
 add_executable( variodumpTest
@@ -52,7 +67,7 @@ target_link_libraries( variodumpTest
     Qt5::Gui
     ${GTEST_LIBS}
 )
-target_compile_definitions( variodumpTest PRIVATE BOOST_ALL_DYN_LINK _WIN32_WINNT=0x0501)
-add_test(NAME variodumpTest COMMAND ${CMAKE_BINARY_DIR}/app/variodumpTest )
-
-
+if(WIN32)
+    target_compile_definitions( variodumpTest PRIVATE BOOST_ALL_DYN_LINK _WIN32_WINNT=0x0501)
+endif()
+add_test(NAME variodumpTest COMMAND variodumpTest )

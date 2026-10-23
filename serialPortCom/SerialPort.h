@@ -2,6 +2,9 @@
 
 #include <boost/asio.hpp>
 #include <boost/asio/serial_port.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <chrono>
+#include <string>
 
 enum class Speed : unsigned int { BAUD9600 = 9600, BAUD57600 = 57600, BAUD115200 = 115200 };
 
@@ -17,11 +20,11 @@ public:
     std::string request( const std::string& request );
 
 private:
-    boost::asio::io_service ioService_;
+    boost::asio::io_context ioContext_;
     boost::asio::serial_port port_;
 
     unsigned int timeoutMs_;
-    boost::asio::deadline_timer timeout_;
+    boost::asio::steady_timer timeout_;
     char buffer_[256];
     bool dataAvailable_;
     std::string response_;
