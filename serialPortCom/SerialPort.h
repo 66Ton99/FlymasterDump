@@ -16,6 +16,7 @@ public:
 
     void setSpeed( Speed s );
     void setTimeout( unsigned int ms );
+    void setInterByteTimeout( unsigned int ms );
 
     std::string request( const std::string& request );
 
@@ -24,10 +25,13 @@ private:
     boost::asio::serial_port port_;
 
     unsigned int timeoutMs_;
+    unsigned int interByteTimeoutMs_;
     boost::asio::steady_timer timeout_;
     char buffer_[256];
     bool dataAvailable_;
     std::string response_;
+
+    static bool isFrameComplete( const std::string& resp );
 
     void writeRequest( const std::string& request );
     std::string readResponse();

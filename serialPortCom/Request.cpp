@@ -27,25 +27,32 @@ DeviceInfo parseDeviceInfo( const std::string& sentence ) {
     }
 
     if( trimmed.empty() ) {
-        return info;
+        throw std::runtime_error( "Empty response from device" );
     }
 
-    try {
-        NmeaSentence s( trimmed );
-        if( s.values.size() > 0 ) info.model = s.values[0];
-        if( s.values.size() > 2 ) info.serialNumber = s.values[2];
-        if( s.values.size() > 3 ) info.firmware = s.values[3];
-        if( s.values.size() > 4 ) {
-            std::string p = s.values[4];
-            while( !p.empty() && p.front() == ' ' ) p.erase( p.begin() );
-            info.pressure = p;
-        }
-    } catch( ... ) {
-        auto parts = split( trimmed, ',' );
-        if( parts.size() > 1 ) info.model = parts[1];
-        if( parts.size() > 3 ) info.serialNumber = parts[3];
-        if( parts.size() > 4 ) info.firmware = parts[4];
-        if( parts.size() > 5 ) info.pressure = parts[5];
+    NmeaSentence s( trimmed );
+    if( s.command != "PFMSNP" ) {
+        throw std::runtime_error( "Invalid response command: expected PFMSNP, got " + s.command );
+    }
+
+    if( s.values.empty() || s.values[0].empty() ) {
+        throw std::runtime_error( "Missing model in PFMSNP response" );
+    }
+    info.model = s.values[0];
+
+    if( s.values.size() <= 2 || s.values[2].empty() ) {
+        throw std::runtime_error( "Missing serial number in PFMSNP response" );
+    }
+    info.serialNumber = s.values[2];
+
+    if( s.values.size() > 3 ) {
+        info.firmware = s.values[3];
+    }
+    if( s.values.size() > 4 ) {
+        std::string p = s.values[4];
+        while( !p.empty() && p.front() == ' ' )
+            p.erase( p.begin() );
+        info.pressure = p;
     }
     return info;
 }
@@ -60,11 +67,9 @@ std::string requestSerial( SerialPort& port, Callback& cb ) {
 DeviceInfo requestDeviceInfo( SerialPort& port, Callback& cb ) {
     cb.notify( Severity::Info, "Checking Flymaster device connection..." );
     std::string resp = requestSerial( port, cb );
-    if( resp.empty() ) {
-        throw std::runtime_error( "No response from device" );
-    }
     DeviceInfo info = parseDeviceInfo( resp );
-    cb.notify( Severity::Info, "Device: " + info.model + ", Serial: " + info.serialNumber + ", Firmware: " + info.firmware );
+    cb.notify( Severity::Info,
+               "Device: " + info.model + ", Serial: " + info.serialNumber + ", Firmware: " + info.firmware );
     return info;
 }
 
@@ -74,10 +79,17 @@ std::vector< FlightMetaInfo > requestFlightInfos( SerialPort& port, Callback& cb
     std::vector< FlightMetaInfo > fmi;
     for( const auto& item : list ) {
         cb.notify( Severity::Debug, "Received: " + item );
-        if( item.empty() ) { // The last item is empty because of the split
+        std::string trimmed = item;
+        while( !trimmed.empty() && ( trimmed.back() == '\r' || trimmed.back() == '\n' || trimmed.back() == ' ' ) ) {
+            trimmed.pop_back();
+        }
+        while( !trimmed.empty() && ( trimmed.front() == '\r' || trimmed.front() == '\n' || trimmed.front() == ' ' ) ) {
+            trimmed.erase( trimmed.begin() );
+        }
+        if( trimmed.empty() ) {
             continue;
         }
-        NmeaSentence sentence( item );
+        NmeaSentence sentence( trimmed );
         fmi.emplace_back( sentence );
     }
     cb.notify( Severity::Info, "#Flights: " + std::to_string( fmi.size() ) );
@@ -106,7 +118,7 @@ BinaryFlightData requestFlight( SerialPort& port, FlightMetaInfo& info, Callback
                 break;
             }
             bytes += block.data.size();
-            cb.notify( Severity::Progress, "Received "+std::to_string(bytes)+" bytes" );
+            cb.notify( Severity::Progress, "Received " + std::to_string( bytes ) + " bytes" );
         } catch( std::exception& e ) {
             ++errorCount;
             if( errorCount == 5 ) {
