@@ -10,7 +10,7 @@
 - **GUI & Core:** Qt 5 (Widgets, Core, Gui)
 - **Networking & Async I/O:** Boost.Asio (including `boost_system`, `boost_date_time`)
 - **Testing:** Google Test (GTest)
-- **Build System:** CMake (3.10+)
+- **Build System:** CMake (3.20+)
 - **Environments & Packaging:** Homebrew (macOS) and Nix (Flakes, `nix-shell`) support
 
 ---
@@ -119,4 +119,15 @@ To verify startup without opening a GUI window (headless):
    - In `CMakeLists.txt`, always pass the CMake target name to `add_test(NAME ... COMMAND ...)` instead of hardcoded relative paths.
 
 5. **Code Formatting:**
-   - Adhere to the code formatting rules defined in the root [`.clang-format`](.clang-format) file.
+   - Adhere strictly to the rules defined in the root [`.clang-format`](.clang-format) file:
+     - **Indentation:** 4 spaces (`IndentWidth: 4`), no tabs.
+     - **Line length:** 120 columns (`ColumnLimit: 120`).
+     - **Spaces inside parentheses:** Always include padding spaces inside parentheses (`SpacesInParentheses: true`), e.g. `if( condition )`, `while( !empty() )`, `fn( arg1, arg2 )`, `( const std::string& str )`.
+     - **Spaces inside template angle brackets:** Always include padding spaces inside angle brackets (`SpacesInAngles: true`), e.g. `std::vector< std::string >`, `Property< QString >`, `dynamic_cast< Task* >`.
+     - **No space before opening parenthesis:** Keywords and functions connect directly to parentheses (`SpaceBeforeParens: Never`), e.g. `if( ... )`, `for( ... )`, `while( ... )`, `func( ... )`.
+     - **Brace placement:** Attach braces to the declaration line (`BreakBeforeBraces: Attach`), e.g. `if( ... ) {`, `class Foo {`, `void bar() {`.
+     - **Pointers and references:** Pointers and references bind to type with padding (`PointerBindsToType: true`), e.g. `Type* var`, `const Type& ref`.
+     - **Access modifiers:** Offset by -4 (`AccessModifierOffset: -4`) so `public:` and `private:` align with `class`.
+     - **Parameter wrapping:** One parameter per line when wrapping (`BinPackArguments: false`, `BinPackParameters: false`).
+     - **Include sorting:** Automatic priority-based `#include` ordering (`SortIncludes: true`).
+   - Run `clang-format -i <file>` (or `$(brew --prefix llvm)/bin/clang-format -i <file>`) on all modified C++ headers and source files before committing.

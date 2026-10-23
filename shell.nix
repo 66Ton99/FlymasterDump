@@ -14,6 +14,6 @@ pkgs.mkShell {
     pkgs.gtest
     qt5.qtbase
   ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-    pkgs.apple-sdk_11
+    pkgs.apple-sdk
   ];
 }

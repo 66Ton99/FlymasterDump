@@ -10,7 +10,7 @@
 - **GUI & Core:** Qt 5 (Widgets, Core, Gui)
 - **Мережа/Асинхронний I/O:** Boost.Asio (включно з `boost_system`, `boost_date_time`)
 - **Тестування:** Google Test (GTest)
-- **Система збірки:** CMake (3.10+)
+- **Система збірки:** CMake (3.20+)
 - **Середовище та пакети:** Підтримка Homebrew (macOS) та Nix (Flakes, `nix-shell`)
 
 ---
@@ -127,4 +127,16 @@ nix-shell
    - У `CMakeLists.txt` для `add_test(NAME ... COMMAND ...)` завжди передавати ім'я CMake-таргету, а не захардкоджений відносний шлях.
 
 5. **Форматування коду:**
-   - Дотримуватися стилю, визначеного в кореневому [`.clang-format`](file:///Volumes/SRC/FlymasterDump/.clang-format).
+   - Суворо дотримуватися правил зі стилю, визначених у кореневому файлі [`.clang-format`](file:///Volumes/SRC/FlymasterDump/.clang-format):
+     - **Відступи:** 4 пробіли (`IndentWidth: 4`), без використання табуляцій.
+     - **Довжина рядка:** максимум 120 символів (`ColumnLimit: 120`).
+     - **Пробіли всередині круглих дужок:** обов'язкові пробіли після відкриваючої та перед закриваючою дужкою (`SpacesInParentheses: true`), наприклад: `if( condition )`, `while( !empty() )`, `fn( arg1, arg2 )`, `( const std::string& str )`.
+     - **Пробіли всередині кутових дужок (шаблони):** обов'язкові пробіли всередині `< >` (`SpacesInAngles: true`), наприклад: `std::vector< std::string >`, `Property< QString >`, `dynamic_cast< Task* >`.
+     - **Відсутність пробілу перед дужкою:** ключові слова та назви функцій пишуться впритул до дужки (`SpaceBeforeParens: Never`), тобто `if( ... )`, `for( ... )`, `while( ... )`, `func( ... )`.
+     - **Розташування фігурних дужок:** стиль Attach (`BreakBeforeBraces: Attach`), дужка на тому ж рядку (`if( ... ) {`, `class Foo {`, `void bar() {`).
+     - **Покажчики та посилання:** прив'язуються до типу (`PointerBindsToType: true`), наприклад: `Type* var`, `const Type& ref`.
+     - **Модифікатори доступу:** зсув -4 (`AccessModifierOffset: -4`), завдяки чому `public:` та `private:` розташовуються на рівні `class`.
+     - **Перенесення параметрів та аргументів:** при переносі не пакувати в один рядок (`BinPackArguments: false`, `BinPackParameters: false`).
+     - **Сортування `#include`:** автоматичне сортування заголовків за пріоритетами категорій (`SortIncludes: true`).
+   - Перед комітом або завершенням роботи обов'язково запускати форматування для змінених файлів:
+     `clang-format -i <file>` (або `$(brew --prefix llvm)/bin/clang-format -i <file>`).

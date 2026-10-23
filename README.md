@@ -3,7 +3,7 @@ Dump all flights from a Flymaster Gps SD Vario into IGC files.
 
 ## Dependencies
 
-* **CMake** 3.10+
+* **CMake** 3.20+
 * **C++14** compiler (Clang / GCC / MSVC)
 * **Qt 5** (Core, Widgets, Gui)
 * **Boost** (system, date_time, asio)

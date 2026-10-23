@@ -1,56 +1,58 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 
+#include "CheckDeviceTask.h"
 #include "DumpTask.h"
 #include "FlightListTask.h"
-#include "CheckDeviceTask.h"
 
 #include <serialPortCom/Request.h>
 #include <serialPortCom/SerialPort.h>
 
+#include <QComboBox>
+#include <QFile>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QSettings>
-#include <QComboBox>
-#include <QFile>
 
 
-MainWindow::MainWindow( QWidget* parent ) : QMainWindow( parent ), ui( new Ui::MainWindow ), taskProgress_( processor_, this ) {
+MainWindow::MainWindow( QWidget* parent )
+    : QMainWindow( parent ), ui( new Ui::MainWindow ), taskProgress_( processor_, this ) {
     ui->setupUi( this );
 
     ui->baudComboBox->addItem( "9600", static_cast< unsigned int >( Speed::BAUD9600 ) );
     ui->baudComboBox->addItem( "57600", static_cast< unsigned int >( Speed::BAUD57600 ) );
     ui->baudComboBox->addItem( "115200", static_cast< unsigned int >( Speed::BAUD115200 ) );
     ui->baudComboBox->setCurrentIndex( 2 );
-    connectProperty( model_.serialPortSpeed, this, [&](){
+    connectProperty( model_.serialPortSpeed, this, [&]() {
         auto idx = ui->baudComboBox->findData( static_cast< unsigned int >( model_.serialPortSpeed() ) );
         ui->baudComboBox->setCurrentIndex( idx );
-    });
-    connect( ui->baudComboBox, &QComboBox::currentTextChanged, this, [&](){
+    } );
+    connect( ui->baudComboBox, &QComboBox::currentTextChanged, this, [&]() {
         model_.serialPortSpeed = static_cast< Speed >( ui->baudComboBox->currentData().toInt() );
-    });
+    } );
 
     load( model_ );
 
     ui->comComboBox->setEditable( true );
     refreshSerialPorts();
 
-    connectProperty( model_.serialPort, this, [&](){
+    connectProperty( model_.serialPort, this, [&]() {
         auto idx = ui->comComboBox->findData( model_.serialPort() );
         if( idx != -1 ) {
             ui->comComboBox->setCurrentIndex( idx );
         } else {
             ui->comComboBox->setEditText( model_.serialPort() );
         }
-    });
-    connect( ui->comComboBox, &QComboBox::currentTextChanged, this, [&]( const QString& text ){
+    } );
+    connect( ui->comComboBox, &QComboBox::currentTextChanged, this, [&]( const QString& text ) {
         auto data = ui->comComboBox->currentData();
-        if( data.isValid() && !data.toString().isEmpty() && text == ui->comComboBox->itemText( ui->comComboBox->currentIndex() ) ) {
+        if( data.isValid() && !data.toString().isEmpty()
+            && text == ui->comComboBox->itemText( ui->comComboBox->currentIndex() ) ) {
             model_.serialPort = data.toString();
         } else {
             model_.serialPort = text;
         }
-    });
+    } );
 
     sync( model_.contest, ui->contestEdit );
     sync( model_.glider, ui->gliderEdit );
@@ -73,9 +75,9 @@ void MainWindow::refreshSerialPorts() {
     ui->comComboBox->blockSignals( true );
     ui->comComboBox->clear();
 
-#if defined(Q_OS_WIN)
+#if defined( Q_OS_WIN )
     for( int i = 1; i <= 10; ++i ) {
-        QString portName = QString("COM%1").arg(i);
+        QString portName = QString( "COM%1" ).arg( i );
         ui->comComboBox->addItem( portName, portName );
     }
 #else
@@ -99,7 +101,7 @@ void MainWindow::refreshSerialPorts() {
     }
 
     // Якщо збережений порт не існує або порожній, а у нас є реальний USB-Serial порт:
-    if( (!QFile::exists( current ) || current.isEmpty()) && !usbEntries.isEmpty() ) {
+    if( ( !QFile::exists( current ) || current.isEmpty() ) && !usbEntries.isEmpty() ) {
         current = usbEntries.first().absoluteFilePath();
         model_.serialPort = current;
     }
@@ -125,7 +127,8 @@ void MainWindow::on_refreshButton_clicked() {
 void MainWindow::on_checkButton_clicked() {
     QString text = ui->comComboBox->currentText().trimmed();
     auto data = ui->comComboBox->currentData();
-    if( data.isValid() && !data.toString().isEmpty() && text == ui->comComboBox->itemText( ui->comComboBox->currentIndex() ) ) {
+    if( data.isValid() && !data.toString().isEmpty()
+        && text == ui->comComboBox->itemText( ui->comComboBox->currentIndex() ) ) {
         model_.serialPort = data.toString();
     } else if( !text.isEmpty() ) {
         model_.serialPort = text;
@@ -139,13 +142,14 @@ void MainWindow::on_checkButton_clicked() {
 void MainWindow::on_connectButton_clicked() {
     QString text = ui->comComboBox->currentText().trimmed();
     auto data = ui->comComboBox->currentData();
-    if( data.isValid() && !data.toString().isEmpty() && text == ui->comComboBox->itemText( ui->comComboBox->currentIndex() ) ) {
+    if( data.isValid() && !data.toString().isEmpty()
+        && text == ui->comComboBox->itemText( ui->comComboBox->currentIndex() ) ) {
         model_.serialPort = data.toString();
     } else if( !text.isEmpty() ) {
         model_.serialPort = text;
     }
 
-    TaskPtr flt = std::make_shared<FlightListTask>( model_ );
+    TaskPtr flt = std::make_shared< FlightListTask >( model_ );
     processor_.schedule( flt );
 }
 
@@ -158,52 +162,50 @@ void MainWindow::on_saveButton_clicked() {
     for( int i = 0; i < ui->listWidget->count(); ++i ) {
         auto item = ui->listWidget->item( i );
         if( item->checkState() == Qt::Checked ) {
-            auto task = std::make_shared<DumpTask>( dir, itemInfo_.at( item ), model_ );
+            auto task = std::make_shared< DumpTask >( dir, itemInfo_.at( item ), model_ );
             processor_.schedule( task );
         }
     }
 }
 
-void MainWindow::sync(Property<QString> &p, QLineEdit *edit){
-    connect( &p, &Property<QString>::propertyChanged, edit, [&, edit](){
-        if( edit->text() != p() ){
+void MainWindow::sync( Property< QString >& p, QLineEdit* edit ) {
+    edit->setText( p() );
+    connect( &p, &Property< QString >::propertyChanged, edit, [&, edit]() {
+        if( edit->text() != p() ) {
             edit->setText( p() );
         }
-    });
-    connect( edit, &QLineEdit::textChanged, this, [&]( const QString& text ){
-        p = text;
-    });
+    } );
+    connect( edit, &QLineEdit::textChanged, this, [&]( const QString& text ) { p = text; } );
 }
 
-void MainWindow::onTaskFinished(TaskPtr task)
-{
-    DumpTask* d = dynamic_cast<DumpTask*>( task.get() );
-    if( d != nullptr ){
+void MainWindow::onTaskFinished( TaskPtr task ) {
+    DumpTask* d = dynamic_cast< DumpTask* >( task.get() );
+    if( d != nullptr ) {
         QListWidgetItem* item = 0;
-        for( const auto& p : itemInfo_ ){
-            if( p.second.index == d->info().index ){
+        for( const auto& p : itemInfo_ ) {
+            if( p.second.index == d->info().index ) {
                 item = p.first;
             }
         }
-        if( item == nullptr ){
+        if( item == nullptr ) {
             return;
         }
-        if( task->callback().count( Severity::Critical ) == 0 && ! task->callback().isCancelled() ){
-            item->setIcon( style()->standardIcon(QStyle::SP_DialogApplyButton) );
+        if( task->callback().count( Severity::Critical ) == 0 && !task->callback().isCancelled() ) {
+            item->setIcon( style()->standardIcon( QStyle::SP_DialogApplyButton ) );
             item->setToolTip( "Successfully stored IGC file" );
             item->setCheckState( Qt::Unchecked );
             item->setFlags( item->flags() ^ Qt::ItemIsUserCheckable ^ Qt::ItemIsEnabled );
         } else {
-            item->setIcon( style()->standardIcon(QStyle::SP_MessageBoxCritical) );
-            item->setToolTip( task->callback().messages( Severity::Critical ).join("\n") );
+            item->setIcon( style()->standardIcon( QStyle::SP_MessageBoxCritical ) );
+            item->setToolTip( task->callback().messages( Severity::Critical ).join( "\n" ) );
         }
     }
 
-    FlightListTask* flt = dynamic_cast<FlightListTask*>( task.get() );
-    if( flt != nullptr ){
-        if( task->callback().count( Severity::Critical ) == 0 ){
+    FlightListTask* flt = dynamic_cast< FlightListTask* >( task.get() );
+    if( flt != nullptr ) {
+        if( task->callback().count( Severity::Critical ) == 0 ) {
             ui->listWidget->clear();
-            for( size_t i=0; i<flt->infos().size(); ++i ){
+            for( size_t i = 0; i < flt->infos().size(); ++i ) {
                 QListWidgetItem* item = new QListWidgetItem( flt->list()[i], ui->listWidget );
                 item->setFlags( item->flags() | Qt::ItemIsUserCheckable );
                 item->setCheckState( Qt::Unchecked );
@@ -214,13 +216,15 @@ void MainWindow::onTaskFinished(TaskPtr task)
         } else {
             ui->statusbar->showMessage( tr( "Connection failed on %1" ).arg( model_.serialPort() ) );
             QStringList errors = task->callback().messages( Severity::Critical );
-            QString errorMsg = errors.isEmpty() ? tr("No response from device.") : errors.join("\n");
+            QString errorMsg = errors.isEmpty() ? tr( "No response from device." ) : errors.join( "\n" );
             QMessageBox::critical( this,
                                    "Connection Error",
-                                   tr("Unable to connect to %1 with %2 baud.\n\nError: %3\n\nPlease check:\n1. Flymaster is connected and POWERED ON\n2. USB cable supports data transfer\n3. Correct serial port is selected")
-                                   .arg( model_.serialPort() )
-                                   .arg( static_cast<unsigned int>( model_.serialPortSpeed() ) )
-                                   .arg( errorMsg ) );
+                                   tr( "Unable to connect to %1 with %2 baud.\n\nError: %3\n\nPlease check:\n1. "
+                                       "Flymaster is connected and POWERED ON\n2. USB cable supports data transfer\n3. "
+                                       "Correct serial port is selected" )
+                                       .arg( model_.serialPort() )
+                                       .arg( static_cast< unsigned int >( model_.serialPortSpeed() ) )
+                                       .arg( errorMsg ) );
         }
     }
 
@@ -257,10 +261,12 @@ void MainWindow::onTaskFinished(TaskPtr task)
             QString errorMsg = errors.isEmpty() ? tr( "No response from device." ) : errors.join( "\n" );
             QMessageBox::critical( this,
                                    tr( "Device Check Failed" ),
-                                   tr( "Unable to communicate with Flymaster on %1 with %2 baud.\n\nError: %3\n\nPlease check:\n1. Flymaster is connected and POWERED ON\n2. USB cable supports data transfer\n3. Correct serial port is selected" )
-                                   .arg( model_.serialPort() )
-                                   .arg( static_cast< unsigned int >( model_.serialPortSpeed() ) )
-                                   .arg( errorMsg ) );
+                                   tr( "Unable to communicate with Flymaster on %1 with %2 baud.\n\nError: "
+                                       "%3\n\nPlease check:\n1. Flymaster is connected and POWERED ON\n2. USB cable "
+                                       "supports data transfer\n3. Correct serial port is selected" )
+                                       .arg( model_.serialPort() )
+                                       .arg( static_cast< unsigned int >( model_.serialPortSpeed() ) )
+                                       .arg( errorMsg ) );
         }
     }
 }
